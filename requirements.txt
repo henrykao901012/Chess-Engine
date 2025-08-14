@@ -1,0 +1,29 @@
+# AlphaZero Chess AI 依賴套件
+
+# 深度學習框架
+torch>=1.12.0
+torchvision>=0.13.0
+
+# 西洋棋相關
+python-chess>=1.999
+
+# 數值計算
+numpy>=1.21.0
+
+# 資料處理
+h5py>=3.7.0
+
+# 視覺化 (可選)
+matplotlib>=3.5.0
+graphviz>=0.20.0
+
+# 日誌和工具
+tqdm>=4.64.0
+
+# 多進程支援
+multiprocessing-logging>=0.3.0
+
+# 開發工具 (可選)
+pytest>=7.0.0
+black>=22.0.0
+flake8>=4.0.0
