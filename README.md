@@ -354,3 +354,319 @@ visualizer.plot_training_curves()
 ## 授權
 
 此專案採用 MIT 授權條款。
+
+# AlphaZero Chess AI Docker 部署指南
+
+這份文件說明如何使用 Docker 來部署和運行 AlphaZero Chess AI。
+
+## 前置需求
+
+### 必要軟體
+- Docker Engine (>= 20.10)
+- Docker Compose (>= 2.0)
+
+### GPU 支援（推薦）
+- NVIDIA GPU
+- NVIDIA Docker (`nvidia-docker2`)
+- NVIDIA Container Toolkit
+
+## 快速開始
+
+### 1. 克隆專案
+```bash
+git clone <repository-url>
+cd alphazero-chess
+```
+
+### 2. 設定權限
+```bash
+chmod +x scripts/docker_run.sh
+```
+
+### 3. 建立 Docker 映像
+```bash
+./scripts/docker_run.sh build
+```
+
+### 4. 啟動訓練
+```bash
+./scripts/docker_run.sh train
+```
+
+## 管理腳本使用
+
+我們提供了一個便利的管理腳本 `scripts/docker_run.sh`：
+
+### 基本命令
+
+```bash
+# 建立映像
+./scripts/docker_run.sh build
+
+# 啟動訓練
+./scripts/docker_run.sh train
+
+# 查看訓練日誌
+./scripts/docker_run.sh logs
+
+# 查看服務狀態
+./scripts/docker_run.sh status
+
+# 停止所有服務
+./scripts/docker_run.sh stop
+```
+
+### 開發命令
+
+```bash
+# 啟動 Jupyter Lab (開發環境)
+./scripts/docker_run.sh jupyter
+
+# 啟動 TensorBoard (監控)
+./scripts/docker_run.sh tensorboard
+
+# 進入容器 shell
+./scripts/docker_run.sh shell
+
+# 備份檢查點
+./scripts/docker_run.sh backup
+```
+
+### 維護命令
+
+```bash
+# 清理 Docker 資源
+./scripts/docker_run.sh cleanup
+
+# 顯示幫助
+./scripts/docker_run.sh help
+```
+
+## 手動 Docker 命令
+
+如果您偏好直接使用 Docker 命令：
+
+### 建立映像
+```bash
+docker build -t alphazero-chess .
+```
+
+### 運行容器（CPU 模式）
+```bash
+docker run -d \
+  --name alphazero-chess-ai \
+  -v $(pwd)/checkpoints:/app/checkpoints \
+  -v $(pwd)/logs:/app/logs \
+  -p 8888:8888 \
+  alphazero-chess
+```
+
+### 運行容器（GPU 模式）
+```bash
+docker run -d \
+  --name alphazero-chess-ai \
+  --gpus all \
+  -v $(pwd)/checkpoints:/app/checkpoints \
+  -v $(pwd)/logs:/app/logs \
+  -p 8888:8888 \
+  alphazero-chess
+```
+
+## Docker Compose 配置
+
+### 基本服務
+```bash
+# 啟動主要訓練服務
+docker-compose up -d alphazero-chess
+
+# 查看日誌
+docker-compose logs -f alphazero-chess
+```
+
+### 開發服務
+```bash
+# 啟動 Jupyter Lab
+docker-compose --profile jupyter up -d
+
+# 啟動 TensorBoard
+docker-compose --profile monitoring up -d
+```
+
+## 資料持久化
+
+重要的資料目錄已配置為 Docker volumes：
+
+- `./checkpoints` - 模型檢查點
+- `./logs` - 訓練日誌
+- `./games` - 對弈記錄
+- `./data` - 訓練資料
+
+這些目錄會在容器刪除後保留資料。
+
+## 環境變數配置
+
+您可以通過環境變數自訂配置：
+
+```bash
+# 設定 GPU 設備
+export CUDA_VISIBLE_DEVICES=0,1
+
+# 設定記憶體配置
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
+# 啟動容器
+docker-compose up -d
+```
+
+## 服務端口
+
+- **8888** - Jupyter Lab (主服務)
+- **8889** - Jupyter Lab (開發服務)
+- **6006** - TensorBoard (主服務)
+- **6007** - TensorBoard (監控服務)
+
+## GPU 支援設定
+
+### 安裝 NVIDIA Container Toolkit
+
+**Ubuntu/Debian:**
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+sudo apt-get update && sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+```
+
+**CentOS/RHEL:**
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.repo | sudo tee /etc/yum.repos.d/nvidia-docker.repo
+
+sudo yum install -y nvidia-docker2
+sudo systemctl restart docker
+```
+
+### 測試 GPU 支援
+```bash
+docker run --rm --gpus all nvidia/cuda:11.8-base nvidia-smi
+```
+
+## 疑難排解
+
+### 常見問題
+
+1. **記憶體不足**
+   ```bash
+   # 增加 Docker 記憶體限制
+   docker run --memory=16g --memory-swap=32g ...
+   ```
+
+2. **GPU 無法訪問**
+   ```bash
+   # 檢查 NVIDIA 驅動
+   nvidia-smi
+   
+   # 檢查 Docker GPU 支援
+   docker run --rm --gpus all nvidia/cuda:11.8-base nvidia-smi
+   ```
+
+3. **端口衝突**
+   ```bash
+   # 修改 docker-compose.yml 中的端口映射
+   ports:
+     - "8890:8888"  # 使用不同的主機端口
+   ```
+
+4. **權限問題**
+   ```bash
+   # 確保目錄權限正確
+   sudo chown -R $USER:$USER checkpoints logs games data
+   ```
+
+### 日誌查看
+
+```bash
+# 查看容器日誌
+docker logs alphazero-chess-ai -f
+
+# 查看 Docker Compose 日誌
+docker-compose logs -f
+
+# 查看系統日誌
+journalctl -u docker.service
+```
+
+### 效能調優
+
+1. **記憶體設定**
+   ```yaml
+   # docker-compose.yml
+   services:
+     alphazero-chess:
+       shm_size: 4gb
+       deploy:
+         resources:
+           limits:
+             memory: 32G
+   ```
+
+2. **CPU 設定**
+   ```yaml
+   services:
+     alphazero-chess:
+       cpus: '8.0'
+   ```
+
+## 生產部署建議
+
+1. **使用特定版本標籤**
+   ```bash
+   docker build -t alphazero-chess:v1.0.0 .
+   ```
+
+2. **設定資源限制**
+   ```yaml
+   deploy:
+     resources:
+       limits:
+         cpus: '8.0'
+         memory: 32G
+   ```
+
+3. **健康檢查**
+   ```yaml
+   healthcheck:
+     test: ["CMD", "python3", "-c", "import torch; print('OK')"]
+     interval: 30s
+     timeout: 10s
+     retries: 3
+   ```
+
+4. **自動重啟**
+   ```yaml
+   restart: unless-stopped
+   ```
+
+## 備份和恢復
+
+### 備份
+```bash
+# 使用管理腳本
+./scripts/docker_run.sh backup
+
+# 手動備份
+tar -czf backup_$(date +%Y%m%d).tar.gz checkpoints/ logs/
+```
+
+### 恢復
+```bash
+# 解壓備份
+tar -xzf backup_20231201.tar.gz
+
+# 重啟服務
+docker-compose up -d
+```
+
+這個 Docker 配置提供了完整的容器化解決方案，讓您可以輕鬆地在不同環境中部署和運行 AlphaZero Chess AI。

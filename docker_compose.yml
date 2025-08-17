@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  alphazero-chess:
+    build: .
+    container_name: alphazero-chess-ai
+    runtime: nvidia # 啟用 NVIDIA GPU 支援
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+    volumes:
+      # 掛載資料目錄，確保訓練資料持久化
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+      - ./games:/app/games
+      - ./data:/app/data
+      # 可選：掛載原始碼進行開發
+      - ./:/app:Z
+    ports:
+      # Jupyter Lab
+      - "8888:8888"
+      # TensorBoard
+      - "6006:6006"
+    shm_size: 2gb # 增加共享記憶體，支援多進程
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    command: python3 main.py
+    restart: unless-stopped
+
+  # Jupyter Lab 服務 (可選)
+  jupyter:
+    build: .
+    container_name: alphazero-jupyter
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - JUPYTER_ENABLE_LAB=yes
+    volumes:
+      - ./:/app:Z
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+    ports:
+      - "8889:8888"
+    command: >
+      bash -c "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser 
+               --allow-root --notebook-dir=/app 
+               --ServerApp.token='' --ServerApp.password=''"
+    profiles:
+      - jupyter
+
+  # TensorBoard 服務 (可選)
+  tensorboard:
+    build: .
+    container_name: alphazero-tensorboard
+    volumes:
+      - ./logs:/app/logs:ro
+    ports:
+      - "6007:6006"
+    command: tensorboard --logdir=/app/logs --host=0.0.0.0 --port=6006
+    profiles:
+      - monitoring
